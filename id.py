@@ -105,6 +105,14 @@ def genIdHY(lastId):
             yield id    
         id, i2, i3, i4, i5 = _genId(i1, i2,i3,i4, i5)
 
+def genIdHY2(arr):
+    all = arr[0:len(arr)]
+    index = 0
+    while(index < len(all)):
+        yield all[index]
+        index = index + 1
+    yield -1
+
 def getFirstIdCurYear(id):  # 获与一个身份证件号同地区、同年的第一个身份证号（随机码为0）
     i1 = id[0:6]
     i2 = int(id[6:10])   #Y

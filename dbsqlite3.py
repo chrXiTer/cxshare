@@ -24,6 +24,30 @@ def insertDataToDb(conn, cur, tableName, colNameList, dataList):
         cur.execute(sqlStr)
     conn.commit()
 
+def reduceDBDataByIDNo2(conn, cursor):
+    cursor.execute('SELECT  id  FROM tmp GROUP BY id')
+    aa = []
+    for row in cursor:
+        IDNo = row[0]
+        aa.append(IDNo)
+    for IDNo in aa:
+        insertDataToDb(conn, cursor, 'tmp2', ['id'], [{'id':IDNo}])
+
+def updateID(conn, cursor, tableName):
+    cursor.execute('SELECT  ID, `身份证`  FROM main')
+    aa = []
+    for row in cursor:
+        ID = row[0]
+        sfz = row[1]
+        if(sfz[0] == "'"):
+            aa.append([ID,sfz])
+    for item in aa:
+        ID = item[0]
+        sfz = item[1][1:]
+        sql = "UPDATE main set `身份证`='%s' where ID=%s;" % (sfz , ID)
+        cursor.execute(sql)
+    conn.commit()
+
 def reduceDBDataByIDNo(conn, cursor, tableName):
     cursor.execute('''
         SELECT `身份证`, `ID`, * FROM %s WHERE `身份证` IN (
