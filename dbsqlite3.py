@@ -24,8 +24,8 @@ def insertDataToDb(conn, cur, tableName, colNameList, dataList):
         cur.execute(sqlStr)
     conn.commit()
 
-def reduceDBDataByIDNo2(conn, cursor):
-    cursor.execute('SELECT  id  FROM tmp GROUP BY id')
+def reduceDBDataByIDNo2(conn, cursor, tableName): # 将表中id去重然后存入 tmp2 表
+    cursor.execute('SELECT  id  FROM %s GROUP BY id' % tableName)
     aa = []
     for row in cursor:
         IDNo = row[0]
@@ -33,8 +33,8 @@ def reduceDBDataByIDNo2(conn, cursor):
     for IDNo in aa:
         insertDataToDb(conn, cursor, 'tmp2', ['id'], [{'id':IDNo}])
 
-def updateID(conn, cursor, tableName):
-    cursor.execute('SELECT  ID, `身份证`  FROM main')
+def updateID(conn, cursor, tableName):  # 修改 身份证 字段，去掉第一个字符
+    cursor.execute('SELECT  ID, `身份证`  FROM %s' % tableName)
     aa = []
     for row in cursor:
         ID = row[0]
@@ -44,7 +44,7 @@ def updateID(conn, cursor, tableName):
     for item in aa:
         ID = item[0]
         sfz = item[1][1:]
-        sql = "UPDATE main set `身份证`='%s' where ID=%s;" % (sfz , ID)
+        sql = "UPDATE %s set `身份证`='%s' where ID=%s;" % (tableName, sfz , ID)
         cursor.execute(sql)
     conn.commit()
 
@@ -56,31 +56,35 @@ def reduceDBDataByIDNo(conn, cursor, tableName):
     ''' % (tableName,tableName))
     tmpData = dict()
     colNameList = [tuple[0] for tuple in cursor.description]
-    for row in cursor:
+    for row in cursor: # 将查到的数据安装 身份证号 分组
         IDNo = row[0]
         tmpData[IDNo]= tmpData.get(IDNo) or []
         tmpData[IDNo].append(list(row))
-    idsNeedDelete = []
 
+    
     def reduceRecord(idsNeedDelete, records):
         IDToDelete = records[0][1]
         for i in range(len(records[0])):
-            if records[0][i] == None:
+            v0 = records[0][i]
+            v1 = records[1][i]
+            if v0 == None or v0 == 'nan' or v0 == '':
                 records[0][i] = records[1][i]
-            elif records[1][i] == None:
-                records[1][i] = records[0][i]
-            elif records[1][i] != records[0][i] and colNameList[i] != "ID":
-                if colNameList[i] == "其它":
-                    records[0][i] = records[0][i] + "$" + records[1][i]
-                    records[1][i] = records[0][i] + "$" + records[1][i]
+            elif v0 == None or v0 == 'nan' or v0 == '':
+                records[1][i] = v0
+            elif v1 != v0 and colNameList[i] != "ID":  # 两天记录该项不一致
+                if colNameList[i] == "其它":    #其它项，进行合并
+                    records[0][i] = v0 + "$" + v1
+                    records[1][i] = v0 + "$" + v1
                 else:
-                    IDToDelete = -1
+                    IDToDelete = -1  # 两条记录不删除
+                    break
         if IDToDelete != -1:
             idsNeedDelete.append(IDToDelete)
             records.remove(records[0])
             if len(records) > 1:
-                reduceRecord(idsNeedDelete, records)
+                reduceRecord(idsNeedDelete, records) 
 
+    idsNeedDelete = []
     for IDNo in tmpData:
         records = tmpData[IDNo]
         reduceRecord(idsNeedDelete, records)
@@ -88,7 +92,7 @@ def reduceDBDataByIDNo(conn, cursor, tableName):
     for IDNo in tmpData:
         records = tmpData[IDNo]
         for record in records:
-            updateDataToDB(conn, cursor, tableName, colNameList[2:-1], record[2:-1])
+            updateDataToDB(conn, cursor, tableName, colNameList[2:], record[2:])
     for ID in idsNeedDelete:
         deleteDataFromDB(conn, cursor, tableName, ID)
     
